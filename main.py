@@ -23,6 +23,7 @@ class MainWindow(QMainWindow):
 
         self.stack.addWidget(self.welcome)
         self.stack.setCurrentWidget(self.welcome)
+
         self.resize(800, 800)
 
     # ---------- TRANSITION ----------

@@ -15,23 +15,26 @@ class ImageViewer(QWidget):
         super().__init__()
 
         self.navigator = navigator
-        self._normal_geometry = None
 
-        # ---------- TITLE ----------
-        self.title_label = QLabel()
-        self.title_label.setAlignment(Qt.AlignCenter)
-        self.title_label.setStyleSheet("""
-            color: white;
-            font-size: 16px;
-            padding: 6px;
-            background-color: rgba(0, 0, 0, 120);
-        """)
+        # ---------- GROUP BUTTONS ----------
+        self.group_buttons = {}
+        self.group_layout = QHBoxLayout()
 
-        # ---------- IMAGE LABELS (DYNAMIC) ----------
+        for group in self.navigator.image_sets.keys():
+            btn = QPushButton(group)
+            btn.clicked.connect(lambda _, g=group: self.switch_group(g))
+            self.group_buttons[group] = btn
+            self.group_layout.addWidget(btn)
+
+        # Center group buttons (optional but cleaner)
+        self.group_layout.setAlignment(Qt.AlignCenter)
+        self.group_layout.setSpacing(10)
+
+        # ---------- IMAGE LABELS ----------
         self.image_labels = []
         self.image_layout = QHBoxLayout()
 
-        num_views = len(self.navigator.image_sets)
+        num_views = 1  # single image per index for now
 
         for _ in range(num_views):
             label = QLabel()
@@ -46,7 +49,7 @@ class ImageViewer(QWidget):
             self.image_labels.append(label)
             self.image_layout.addWidget(label)
 
-        # ---------- BUTTONS ----------
+        # ---------- NAVIGATION BUTTONS ----------
         self.prev_button = QPushButton("◀ Previous")
         self.next_button = QPushButton("Next ▶")
         self.fullscreen_button = QPushButton("Fullscreen (F)")
@@ -55,58 +58,63 @@ class ImageViewer(QWidget):
         self.next_button.clicked.connect(self.show_next)
         self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
 
-        # ---------- BUTTON LAYOUT ----------
+        # ---------- BUTTON ROW ----------
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.prev_button)
-        button_layout.addStretch()  # pushes fullscreen to center
+        button_layout.addStretch()
         button_layout.addWidget(self.fullscreen_button)
         button_layout.addStretch()
         button_layout.addWidget(self.next_button)
 
         # ---------- MAIN LAYOUT ----------
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self.title_label)
 
-        main_layout.addLayout(self.image_layout)
-
-        main_layout.addLayout(button_layout)
+        main_layout.addLayout(self.image_layout, 1)
+        main_layout.addLayout(button_layout, 0)
+        main_layout.addLayout(self.group_layout, 0)
 
         self.setLayout(main_layout)
 
         # ---------- WINDOW ----------
-        self.setWindowTitle("Photo Flicker")
-        self.resize(1000, 700)
+        self.setWindowTitle("AeroView")
+        self.resize(1200, 800)
         self.setFocusPolicy(Qt.StrongFocus)
         self.setFocus()
 
+        # ensure proper initial state
+        self.navigator.reset()
         self.update_image()
+
         self.show()
+
+    # ---------- GROUP SWITCH ----------
+    def switch_group(self, group):
+        self.navigator.set_group(group)
+        self.update_image()
+        self.setFocus()
 
     # ---------- IMAGE UPDATE ----------
     def update_image(self):
         items = self.navigator.current_items()
 
         self.pixmaps = []
-        labels = []
+
+        if not items:
+            print("No items to display")
+            return
 
         for item in items:
             pixmap = QPixmap(item.path)
 
             if pixmap.isNull():
                 print(f"Failed to load: {item.path}")
-                # add empty placeholder to keep alignment
                 self.pixmaps.append(QPixmap())
-                labels.append("Invalid")
             else:
                 self.pixmaps.append(pixmap)
-                labels.append(item.group)
-
-        # Show all group names
-        self.title_label.setText(" | ".join(labels))
-        self.title_label.hide()
 
         self.render_images()
 
+    # ---------- RENDER ----------
     def render_images(self):
         if not hasattr(self, "pixmaps"):
             return
@@ -136,14 +144,14 @@ class ImageViewer(QWidget):
 
     # ---------- FULLSCREEN ----------
     def toggle_fullscreen(self):
-        if self.isFullScreen():
-            self.showNormal()
-            if self._normal_geometry:
-                self.setGeometry(self._normal_geometry)
-        else:
-            self._normal_geometry = self.geometry()
-            self.showFullScreen()
+        window = self.window()
 
+        if window.isFullScreen():
+            window.showNormal()
+        else:
+            window.showFullScreen()
+
+        self.setFocus()
         self.render_images()
 
     # ---------- KEY HANDLING ----------
@@ -158,10 +166,12 @@ class ImageViewer(QWidget):
             self.toggle_fullscreen()
 
         elif event.key() == Qt.Key_Escape:
-            if self.isFullScreen():
-                self.showNormal()
+            window = self.window()
+
+            if window.isFullScreen():
+                window.showNormal()
             else:
-                self.close()
+                window.close()
 
     # ---------- RESIZE ----------
     def resizeEvent(self, event):
