@@ -1,59 +1,50 @@
 import sys
-from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 
 from loader import load_images
 from navigator import ImageNavigator
 from ui import ImageViewer
+from welcomepage import WelcomeScreen
 
 
-def select_folders():
-    folders = []
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
 
-    while True:
-        folder = QFileDialog.getExistingDirectory(
-            None,
-            "Select Image Folder"
-        )
+        self.setWindowTitle("AeroView")
 
-        if not folder:
-            break
+        # ---------- STACK ----------
+        self.stack = QStackedWidget()
+        self.setCentralWidget(self.stack)
 
-        folders.append(folder)
+        # ---------- WELCOME SCREEN ----------
+        self.welcome = WelcomeScreen(background_path="AeroViewLogo.png")
+        self.welcome.folder_selected.connect(self.start_viewer)
 
-        reply = QMessageBox.question(
-            None,
-            "Add Another Folder?",
-            "Do you want to add another folder?",
-            QMessageBox.Yes | QMessageBox.No
-        )
+        self.stack.addWidget(self.welcome)
+        self.stack.setCurrentWidget(self.welcome)
+        self.resize(800, 800)
 
-        if reply == QMessageBox.No:
-            break
+    # ---------- TRANSITION ----------
+    def start_viewer(self, folder):
+        images = load_images([folder])
 
-    return folders
+        if not images:
+            print("No images found.")
+            return
+
+        navigator = ImageNavigator(images)
+        self.viewer = ImageViewer(navigator)
+
+        self.stack.addWidget(self.viewer)
+        self.stack.setCurrentWidget(self.viewer)
 
 
 def main():
     app = QApplication(sys.argv)
 
-    folders = select_folders()
-
-    if not folders:
-        print("No folders selected. Exiting.")
-        sys.exit()
-
-    # NOW RETURNS ImageItem objects (important change)
-    images = load_images(folders)
-
-    if not images:
-        print("No images found in selected folders.")
-        sys.exit()
-
-    # Navigator now works with ImageItem objects
-    navigator = ImageNavigator(images)
-
-    viewer = ImageViewer(navigator)
-    viewer.show()
+    window = MainWindow()
+    window.show()
 
     sys.exit(app.exec())
 
