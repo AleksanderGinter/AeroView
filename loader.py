@@ -1,6 +1,6 @@
 from pathlib import Path
 import re
-from models import ImageItem
+from collections import defaultdict
 
 SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
@@ -12,26 +12,42 @@ def natural_key(path):
     ]
 
 
-def get_group_name(path: Path):
-    return path.parents[1].name if len(path.parents) > 1 else "Unknown"
+class ImageItem:
+    def __init__(self, path, group):
+        self.path = path
+        self.group = group
+
+
+def extract_group(path: Path):
+    """
+    Extract X/Y/Z from folder like 'Z CpT'
+    """
+    return path.parent.name
 
 
 def load_images(folders):
-    all_images = []
+    """
+    Returns:
+    {
+        "X": [ImageItem, ImageItem, ...],
+        "Y": [...]
+    }
+    """
+
+    grouped = defaultdict(list)
 
     for folder in folders:
-        images = []
-
         for path in Path(folder).rglob("*"):
             if path.suffix.lower() in SUPPORTED_EXTS:
-                images.append(
-                    ImageItem(
-                        path=str(path),
-                        group=path.parents[1].name
-                    )
-                )
+                group = extract_group(path)
+                grouped[group].append(ImageItem(str(path), group))
 
-        images = sorted(images, key=lambda x: natural_key(x.path))
-        all_images.append(images)
+    # sort each group naturally
+    for group in grouped:
+        grouped[group] = sorted(
+            grouped[group],
+            key=lambda x: natural_key(x.path)
+        )
 
-    return all_images
+    return dict(grouped)
+
