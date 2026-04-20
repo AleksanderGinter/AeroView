@@ -17,7 +17,7 @@ class ImageViewer(QWidget):
         self.navigator = navigator
         self._normal_geometry = None
 
-        # ---------- LABELS ----------
+        # ---------- TITLE ----------
         self.title_label = QLabel()
         self.title_label.setAlignment(Qt.AlignCenter)
         self.title_label.setStyleSheet("""
@@ -27,14 +27,24 @@ class ImageViewer(QWidget):
             background-color: rgba(0, 0, 0, 120);
         """)
 
-        self.image_label = QLabel()
-        self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setStyleSheet("background-color: black;")
+        # ---------- IMAGE LABELS (DYNAMIC) ----------
+        self.image_labels = []
+        self.image_layout = QHBoxLayout()
 
-        self.image_label.setSizePolicy(
-            QSizePolicy.Ignored,
-            QSizePolicy.Ignored
-        )
+        num_views = len(self.navigator.image_sets)
+
+        for _ in range(num_views):
+            label = QLabel()
+            label.setAlignment(Qt.AlignCenter)
+            label.setStyleSheet("background-color: black;")
+
+            label.setSizePolicy(
+                QSizePolicy.Ignored,
+                QSizePolicy.Ignored
+            )
+
+            self.image_labels.append(label)
+            self.image_layout.addWidget(label)
 
         # ---------- BUTTONS ----------
         self.prev_button = QPushButton("◀ Previous")
@@ -45,15 +55,20 @@ class ImageViewer(QWidget):
         self.next_button.clicked.connect(self.show_next)
         self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
 
-        # ---------- LAYOUT ----------
+        # ---------- BUTTON LAYOUT ----------
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.prev_button)
+        button_layout.addStretch()  # pushes fullscreen to center
         button_layout.addWidget(self.fullscreen_button)
+        button_layout.addStretch()
         button_layout.addWidget(self.next_button)
 
+        # ---------- MAIN LAYOUT ----------
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.title_label)
-        main_layout.addWidget(self.image_label)
+
+        main_layout.addLayout(self.image_layout)
+
         main_layout.addLayout(button_layout)
 
         self.setLayout(main_layout)
@@ -69,28 +84,44 @@ class ImageViewer(QWidget):
 
     # ---------- IMAGE UPDATE ----------
     def update_image(self):
-        item = self.navigator.current()
+        items = self.navigator.current_items()
 
-        pixmap = QPixmap(item.path)
-        if pixmap.isNull():
-            print(f"Failed to load: {item.path}")
+        self.pixmaps = []
+        labels = []
+
+        for item in items:
+            pixmap = QPixmap(item.path)
+
+            if pixmap.isNull():
+                print(f"Failed to load: {item.path}")
+                # add empty placeholder to keep alignment
+                self.pixmaps.append(QPixmap())
+                labels.append("Invalid")
+            else:
+                self.pixmaps.append(pixmap)
+                labels.append(item.group)
+
+        # Show all group names
+        self.title_label.setText(" | ".join(labels))
+        self.title_label.hide()
+
+        self.render_images()
+
+    def render_images(self):
+        if not hasattr(self, "pixmaps"):
             return
 
-        self.title_label.setText(item.group)
+        for label, pixmap in zip(self.image_labels, self.pixmaps):
+            if pixmap.isNull():
+                label.clear()
+                continue
 
-        self.current_pixmap = pixmap
-        self.render_image()
-
-    def render_image(self):
-        if not hasattr(self, "current_pixmap"):
-            return
-
-        scaled = self.current_pixmap.scaled(
-            self.image_label.size(),
-            Qt.KeepAspectRatio,
-            Qt.SmoothTransformation
-        )
-        self.image_label.setPixmap(scaled)
+            scaled = pixmap.scaled(
+                label.size(),
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            )
+            label.setPixmap(scaled)
 
     # ---------- NAVIGATION ----------
     def show_next(self):
@@ -113,7 +144,7 @@ class ImageViewer(QWidget):
             self._normal_geometry = self.geometry()
             self.showFullScreen()
 
-        self.render_image()
+        self.render_images()
 
     # ---------- KEY HANDLING ----------
     def keyPressEvent(self, event):
@@ -134,5 +165,5 @@ class ImageViewer(QWidget):
 
     # ---------- RESIZE ----------
     def resizeEvent(self, event):
-        self.render_image()
+        self.render_images()
         super().resizeEvent(event)

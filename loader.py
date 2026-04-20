@@ -17,16 +17,21 @@ def get_group_name(path: Path):
 
 
 def load_images(folders):
-    images = []
+    all_images = []
 
     for folder in folders:
+        images = []
+
         for path in Path(folder).rglob("*"):
             if path.suffix.lower() in SUPPORTED_EXTS:
                 images.append(
                     ImageItem(
                         path=str(path),
-                        group=get_group_name(path)
+                        group=path.parents[1].name
                     )
                 )
 
-    return sorted(images, key=lambda x: natural_key(x.path))
+        images = sorted(images, key=lambda x: natural_key(x.path))
+        all_images.append(images)
+
+    return all_images
