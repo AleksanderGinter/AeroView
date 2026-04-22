@@ -5,9 +5,6 @@ from collections import defaultdict
 SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
-PREFERRED_GROUPS = ["Z CpT", "Z"]
-
-
 def natural_key(path):
     return [
         int(text) if text.isdigit() else text.lower()
@@ -21,80 +18,43 @@ class ImageItem:
         self.group = group
 
 
-def extract_group(path: Path):
+# =========================================================
+# CASE LOADER (SINGLE CASE ROOT)
+# =========================================================
+def load_images(case_folder: str):
     """
-    Extract full folder name like 'Z CpT'
-    """
-    return path.parent.name
-
-
-def load_images(root_folders):
-    grouped = defaultdict(list)
-
-    # ---------- BUILD DATASET ----------
-    for root in root_folders:
-        root_path = Path(root)
-
-        for group_folder in root_path.iterdir():
-            if not group_folder.is_dir():
-                continue
-
-            images = []
-
-            for path in group_folder.rglob("*"):
-                if path.suffix.lower() in SUPPORTED_EXTS:
-                    group = group_folder.name
-                    images.append(ImageItem(str(path), group))
-
-            if images:
-                images = sorted(images, key=lambda x: natural_key(x.path))
-                grouped[group_folder.name].extend(images)
-
-    grouped = dict(grouped)
-
-    # ---------- APPLY PREFERRED GROUP LOGIC ----------
-    grouped = apply_preferred_group(grouped)
-
-    return grouped
-
-
-# ---------- PREFERRED GROUP HANDLING ----------
-def apply_preferred_group(grouped):
-    """
-    Ensures a stable default group (Z CpT preferred).
-    Falls back gracefully if not found.
+    B027/
+        Z CpT/
+        Y CpT/
     """
 
-    if not grouped:
-        return grouped
+    root = Path(case_folder)
 
-    # 1. Try exact match priority list
-    for preferred in PREFERRED_GROUPS:
-        if preferred in grouped:
-            grouped = _reorder_dict(grouped, preferred)
-            return grouped
+    if not root.exists():
+        print("Invalid path:", root)
+        return {}
 
-    # 2. Fallback: any group starting with 'Z'
-    for key in grouped.keys():
-        if key.startswith("Z"):
-            grouped = _reorder_dict(grouped, key, override_name="Z CpT")
-            return grouped
+    case_name = root.name
 
-    # 3. No preference found → keep original
-    return grouped
+    dataset = defaultdict(lambda: defaultdict(list))
 
+    # -----------------------------------------------------
+    # GROUP LEVEL ONLY
+    # -----------------------------------------------------
+    for group_folder in root.iterdir():
 
-def _reorder_dict(d, first_key, override_name=None):
-    """
-    Moves preferred key to front of dict.
-    Optionally renames it (used for fallback consistency).
-    """
-    new_dict = {}
+        if not group_folder.is_dir():
+            continue
 
-    for k, v in d.items():
-        if k == first_key:
-            new_dict[override_name or k] = v
-        else:
-            new_dict[k] = v
+        group_name = group_folder.name
+        images = []
 
-    return new_dict
+        for img in group_folder.rglob("*"):
+            if img.suffix.lower() in SUPPORTED_EXTS:
+                images.append(ImageItem(str(img), group_name))
+
+        if images:
+            images.sort(key=lambda x: natural_key(x.path))
+            dataset[case_name][group_name].extend(images)
+
+    return dict(dataset)
