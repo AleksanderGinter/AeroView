@@ -14,21 +14,29 @@ from PySide6.QtCore import Qt, Signal, QSettings
 class WelcomeScreen(QWidget):
     folder_selected = Signal(str)
 
-    def __init__(self, background_path):
+    def __init__(self, background_path, width=800, height=800):
         super().__init__()
+
+        # ---------- WINDOW CONFIG ----------
+        self.resize(width, height)
+        self.setMinimumSize(600, 600)
+        self.setWindowTitle("AeroView - Welcome")
+
+        # Optional: keeps it stable for comparison UI entry screen
+        self.setFocusPolicy(Qt.StrongFocus)
 
         # ---------- BACKGROUND ----------
         self.background_label = QLabel(self)
         self.background_label.setScaledContents(True)
 
         pixmap = QPixmap(background_path)
-        self.background_label.setPixmap(pixmap)
-        self.background_label.setGeometry(self.rect())
+        self.background_pixmap = pixmap  # keep reference safe
+
+        self.background_label.setPixmap(self.background_pixmap)
 
         # ---------- OVERLAY ----------
         self.overlay = QWidget(self)
         self.overlay.setAttribute(Qt.WA_TranslucentBackground)
-        self.overlay.setGeometry(self.rect())
 
         # ---------- CONTINUE BUTTON ----------
         self.continue_button = QPushButton("Continue", self.overlay)
@@ -45,11 +53,15 @@ class WelcomeScreen(QWidget):
             QPushButton:hover {
                 background-color: rgba(60, 60, 60, 200);
             }
+            QPushButton:disabled {
+                background-color: rgba(80, 80, 80, 120);
+                color: rgba(255,255,255,120);
+            }
         """)
 
         self.continue_button.clicked.connect(self.start)
 
-        # ---------- BASELINE ----------
+        # ---------- BASELINE PATH UI ----------
         self.path_display = QLineEdit()
         self.path_display.setReadOnly(True)
         self.path_display.setPlaceholderText("No folder selected")
@@ -83,8 +95,9 @@ class WelcomeScreen(QWidget):
         self.folder_layout.addWidget(self.path_display)
         self.folder_layout.addWidget(self.select_button)
 
-        # ---------- LAYOUT ----------
-        layout = QVBoxLayout()
+        # ---------- MAIN OVERLAY LAYOUT ----------
+        layout = QVBoxLayout(self.overlay)
+
         layout.addStretch(4)
         layout.addWidget(self.continue_button, alignment=Qt.AlignCenter)
         layout.addLayout(self.folder_layout)
@@ -101,10 +114,18 @@ class WelcomeScreen(QWidget):
 
         self.continue_button.setEnabled(bool(saved_path))
 
+        # ---------- INITIAL GEOMETRY SET ----------
+        self._apply_geometry()
+
+    # ---------- GEOMETRY HANDLING ----------
+    def _apply_geometry(self):
+        rect = self.rect()
+        self.background_label.setGeometry(rect)
+        self.overlay.setGeometry(rect)
+
     # ---------- RESIZE ----------
     def resizeEvent(self, event):
-        self.background_label.setGeometry(self.rect())
-        self.overlay.setGeometry(self.rect())
+        self._apply_geometry()
         super().resizeEvent(event)
 
     # ---------- SELECT FOLDER ----------

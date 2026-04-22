@@ -18,27 +18,32 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.stack)
 
         # ---------- WELCOME SCREEN ----------
-        self.welcome = WelcomeScreen(background_path="AeroViewLogo.png")
-        self.welcome.folder_selected.connect(self.start_viewer)
+        self.welcome = WelcomeScreen("AeroViewLogo.png")
+        self.welcome.folder_selected.connect(self.start)
 
         self.stack.addWidget(self.welcome)
         self.stack.setCurrentWidget(self.welcome)
 
-        self.resize(800, 800)
+    # ---------- START APP ----------
+    def start(self, case_folder):
+        """
+        case_folder = e.g. B027/
+        """
 
-    # ---------- TRANSITION ----------
-    def start_viewer(self, folder):
-        images = load_images([folder])
+        dataset = load_images(case_folder)
 
-        if not images:
-            print("No images found.")
+        if not dataset:
+            print("No data found in:", case_folder)
             return
 
-        navigator = ImageNavigator(images)
-        self.viewer = ImageViewer(navigator)
+        # ---------- NAVIGATOR ----------
+        navigator = ImageNavigator(dataset)
 
-        self.stack.addWidget(self.viewer)
-        self.stack.setCurrentWidget(self.viewer)
+        # ---------- UI ----------
+        viewer = ImageViewer(navigator, load_images)
+
+        self.stack.addWidget(viewer)
+        self.stack.setCurrentWidget(viewer)
 
 
 def main():
