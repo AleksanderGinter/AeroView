@@ -1,5 +1,6 @@
 import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
+from PySide6.QtGui import QIcon
 
 from loader import load_images
 from navigator import ImageNavigator
@@ -12,6 +13,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("AeroView")
+        self.setWindowIcon(QIcon("AeroViewIcon.png"))
 
         # ---------- STACK ----------
         self.stack = QStackedWidget()
@@ -48,6 +50,7 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon("AeroViewIcon.png"))
 
     window = MainWindow()
     window.show()
