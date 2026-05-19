@@ -141,6 +141,12 @@ class ImageViewer(QWidget):
         self.add_case_button = QPushButton("Add Case (A)")
         self.remove_case_button = QPushButton("Remove Case (R)")
 
+        self.prev_button.setFocusPolicy(Qt.NoFocus)
+        self.next_button.setFocusPolicy(Qt.NoFocus)
+        self.fullscreen_button.setFocusPolicy(Qt.NoFocus)
+        self.add_case_button.setFocusPolicy(Qt.NoFocus)
+        self.remove_case_button.setFocusPolicy(Qt.NoFocus)
+
         self.prev_button.clicked.connect(self.show_prev)
         self.next_button.clicked.connect(self.show_next)
         self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
@@ -246,6 +252,9 @@ class ImageViewer(QWidget):
 
         self.setLayout(main)
 
+        self.setFocusPolicy(Qt.StrongFocus)
+        self.setFocus()
+
         self.update_image()
 
     # =========================================================
@@ -335,6 +344,7 @@ class ImageViewer(QWidget):
         self.navigator.set_index_from_ratio(ratio)
 
         self.update_image()
+        self.setFocus()
 
     def update_slider(self):
         ratio = self.navigator.get_ratio()
