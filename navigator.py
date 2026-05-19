@@ -13,7 +13,11 @@ class ImageNavigator:
 
         self.groups = self._collect_groups()
 
-        self.current_group = "Z CpT" if "Z CpT" in self.groups else (self.groups[0] if self.groups else None)
+        self.current_group = (
+            "Z CpT"
+            if "Z CpT" in self.groups
+            else (self.groups[0] if self.groups else None)
+        )
 
         self.index = 0
         self._update_limits()
@@ -30,7 +34,7 @@ class ImageNavigator:
         return sorted(groups)
 
     # -----------------------------------------------------
-    # LIMITS (UPDATED LOGIC)
+    # LIMITS
     # -----------------------------------------------------
     def _update_limits(self):
         if not self.current_group:
@@ -46,6 +50,45 @@ class ImageNavigator:
             max_len = max(max_len, len(group_images))
 
         self.max_index = max_len - 1 if max_len > 0 else 0
+
+        # Clamp current index if needed
+        self.index = min(self.index, self.max_index)
+
+    # -----------------------------------------------------
+    # BASE CASE LENGTH
+    # -----------------------------------------------------
+    def get_base_length(self):
+        if not self.base_case or not self.current_group:
+            return 0
+
+        case_data = self.dataset.get(self.base_case, {})
+        group_images = case_data.get(self.current_group, [])
+
+        return len(group_images)
+
+    # -----------------------------------------------------
+    # SLIDER RATIO
+    # -----------------------------------------------------
+    def set_index_from_ratio(self, ratio):
+        base_length = self.get_base_length()
+
+        if base_length <= 1:
+            self.index = 0
+            return
+
+        ratio = max(0.0, min(1.0, ratio))
+
+        self.index = round(ratio * (base_length - 1))
+
+        self.index = min(self.index, self.max_index)
+
+    def get_ratio(self):
+        base_length = self.get_base_length()
+
+        if base_length <= 1:
+            return 0.0
+
+        return self.index / (base_length - 1)
 
     # -----------------------------------------------------
     # GROUP SWITCH

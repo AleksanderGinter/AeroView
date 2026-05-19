@@ -6,8 +6,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QSizePolicy,
     QFileDialog,
-    QInputDialog
+    QInputDialog,
+    QSlider
 )
+
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 
@@ -21,15 +23,18 @@ class CaseFrame(QWidget):
 
         self.case_name = case_name
 
-        # ---------- TITLE ----------
-        self.title = QLabel(case_name)
+        # -------------------------------------------------
+        # TITLE
+        # -------------------------------------------------
+        display_name = case_name + (" (BSL)" if is_base else "")
+        self.title = QLabel(display_name)
         self.title.setAlignment(Qt.AlignCenter)
 
         if is_base:
             self.title.setStyleSheet("""
                 background-color: rgba(20, 20, 20, 220);
                 color: white;
-                font-size: 13px;
+                font-size: 30px;
                 font-weight: bold;
                 padding: 3px;
                 border-radius: 4px;
@@ -38,21 +43,30 @@ class CaseFrame(QWidget):
             self.title.setStyleSheet("""
                 background-color: rgba(20, 20, 20, 200);
                 color: white;
-                font-size: 11px;
+                font-size: 26px;
                 padding: 3px;
                 border-radius: 4px;
             """)
 
-        # ---------- IMAGE ----------
+        # -------------------------------------------------
+        # IMAGE
+        # -------------------------------------------------
         self.label = QLabel("No image")
         self.label.setAlignment(Qt.AlignCenter)
+
         self.label.setStyleSheet("""
             color: white;
-            font-size: 13px;
+            font-size: 26px;
         """)
-        self.label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
 
-        # ---------- LAYOUT ----------
+        self.label.setSizePolicy(
+            QSizePolicy.Ignored,
+            QSizePolicy.Ignored
+        )
+
+        # -------------------------------------------------
+        # LAYOUT
+        # -------------------------------------------------
         layout = QVBoxLayout()
         layout.setSpacing(4)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -75,6 +89,7 @@ class CaseFrame(QWidget):
             self.label.setPixmap(QPixmap())
         else:
             self.label.setText("")
+
             self.label.setPixmap(
                 pixmap.scaled(
                     self.label.size(),
@@ -88,6 +103,8 @@ class CaseFrame(QWidget):
 # MAIN VIEWER
 # =========================================================
 class ImageViewer(QWidget):
+    SLIDER_MAX = 1000
+
     def __init__(self, navigator, loader):
         super().__init__()
 
@@ -116,7 +133,7 @@ class ImageViewer(QWidget):
         """)
 
         # =====================================================
-        # NAV BUTTONS
+        # NAVIGATION BUTTONS
         # =====================================================
         self.prev_button = QPushButton("◀ Previous")
         self.next_button = QPushButton("Next ▶")
@@ -131,6 +148,7 @@ class ImageViewer(QWidget):
         self.remove_case_button.clicked.connect(self.remove_case)
 
         nav_layout = QHBoxLayout()
+
         nav_layout.addWidget(self.prev_button)
         nav_layout.addStretch()
         nav_layout.addWidget(self.fullscreen_button)
@@ -148,19 +166,70 @@ class ImageViewer(QWidget):
         self.build_case_frames()
 
         # =====================================================
+        # TIMELINE SLIDER
+        # =====================================================
+        self.timeline_slider = QSlider(Qt.Horizontal)
+
+        self.timeline_slider.setRange(0, self.SLIDER_MAX)
+
+        self.timeline_slider.setStyleSheet("""
+        QSlider::groove:horizontal {
+            background: rgba(60, 60, 60, 180);
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        QSlider::handle:horizontal {
+            background: rgb(25, 55, 110);
+            border: 2px solid rgb(15, 35, 80);
+            width: 12px;
+            margin: -4px 0;
+            border-radius: 6px;
+        }
+        
+        QSlider::handle:horizontal:hover {
+            background: rgb(35, 70, 140);
+        }
+        
+        QSlider::handle:horizontal:pressed {
+            background: rgb(15, 45, 95);
+        }
+        """)
+
+        self.timeline_slider.valueChanged.connect(
+            self.slider_changed
+        )
+
+        # =====================================================
+        # FRAME LABEL
+        # =====================================================
+        self.frame_label = QLabel()
+        self.frame_label.setAlignment(Qt.AlignCenter)
+
+        self.frame_label.setStyleSheet("""
+            color: black;
+            font-size: 16px;
+            padding: 2px;
+        """)
+
+        # =====================================================
         # GROUP BUTTONS
         # =====================================================
         self.group_buttons = {}
         self.group_layout = QHBoxLayout()
 
         self.rebuild_groups()
+
         self.group_layout.setAlignment(Qt.AlignCenter)
 
         group_bar = QWidget()
+
         group_bar.setLayout(self.group_layout)
+
         group_bar.setFixedHeight(40)
+
         group_bar.setStyleSheet("""
-        background-color: rgba(25, 25, 25, 160);
+        background-color: rgba(40, 40, 40, 80);
         border-top: 1px solid rgba(255, 255, 255, 30);
         """)
 
@@ -168,8 +237,11 @@ class ImageViewer(QWidget):
         # MAIN LAYOUT
         # =====================================================
         main = QVBoxLayout()
+
         main.addLayout(self.case_layout, 1)
         main.addLayout(nav_layout, 0)
+        main.addWidget(self.timeline_slider, 0)
+        main.addWidget(self.frame_label, 0)
         main.addWidget(group_bar, 0)
 
         self.setLayout(main)
@@ -186,13 +258,24 @@ class ImageViewer(QWidget):
 
         self.case_frames.clear()
 
-        base_case = self.navigator.cases[0] if self.navigator.cases else None
+        base_case = (
+            self.navigator.cases[0]
+            if self.navigator.cases
+            else None
+        )
 
         for case in self.navigator.cases:
-            frame = CaseFrame(case, is_base=(case == base_case))
+            frame = CaseFrame(
+                case,
+                is_base=(case == base_case)
+            )
 
             frame.setMinimumWidth(250)
-            frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+            frame.setSizePolicy(
+                QSizePolicy.Expanding,
+                QSizePolicy.Expanding
+            )
 
             self.case_frames.append(frame)
             self.case_layout.addWidget(frame)
@@ -211,9 +294,10 @@ class ImageViewer(QWidget):
             btn = QPushButton(group)
 
             btn.setFixedHeight(28)
+
             btn.setStyleSheet("""
             QPushButton {
-                background-color: rgba(50, 50, 50, 180);
+                background-color: rgba(40, 40, 40, 200);
                 border-radius: 6px;
                 padding: 4px 10px;
                 font-size: 12px;
@@ -228,21 +312,49 @@ class ImageViewer(QWidget):
             }
             """)
 
-            btn.clicked.connect(lambda _, g=group: self.switch_group(g))
+            btn.clicked.connect(
+                lambda _, g=group: self.switch_group(g)
+            )
 
             self.group_buttons[group] = btn
             self.group_layout.addWidget(btn)
 
     def switch_group(self, group):
         self.navigator.set_group(group)
+
         self.update_image()
+
         self.setFocus()
+
+    # =========================================================
+    # SLIDER
+    # =========================================================
+    def slider_changed(self, value):
+        ratio = value / self.SLIDER_MAX
+
+        self.navigator.set_index_from_ratio(ratio)
+
+        self.update_image()
+
+    def update_slider(self):
+        ratio = self.navigator.get_ratio()
+
+        slider_value = round(ratio * self.SLIDER_MAX)
+
+        self.timeline_slider.blockSignals(True)
+
+        self.timeline_slider.setValue(slider_value)
+
+        self.timeline_slider.blockSignals(False)
 
     # =========================================================
     # ADD CASE
     # =========================================================
     def add_case(self):
-        folder = QFileDialog.getExistingDirectory(self, "Select Case Folder")
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select Case Folder"
+        )
 
         if not folder:
             return
@@ -253,18 +365,28 @@ class ImageViewer(QWidget):
             return
 
         for case, group_map in new_data.items():
+
             if case not in self.navigator.dataset:
                 self.navigator.dataset[case] = group_map
+
             else:
                 for group, images in group_map.items():
-                    self.navigator.dataset[case].setdefault(group, [])
-                    self.navigator.dataset[case][group].extend(images)
+
+                    self.navigator.dataset[case].setdefault(
+                        group,
+                        []
+                    )
+
+                    self.navigator.dataset[case][group].extend(
+                        images
+                    )
 
         self.navigator.reset()
 
         self.build_case_frames()
         self.rebuild_groups()
         self.update_image()
+
         self.setFocus()
 
     # =========================================================
@@ -278,7 +400,10 @@ class ImageViewer(QWidget):
 
         base_case = self.navigator.base_case
 
-        removable_cases = [c for c in cases if c != base_case]
+        removable_cases = [
+            c for c in cases
+            if c != base_case
+        ]
 
         case, ok = QInputDialog.getItem(
             self,
@@ -300,6 +425,7 @@ class ImageViewer(QWidget):
         self.build_case_frames()
         self.rebuild_groups()
         self.update_image()
+
         self.setFocus()
 
     # =========================================================
@@ -311,17 +437,31 @@ class ImageViewer(QWidget):
         for frame, item in zip(self.case_frames, items):
             frame.set_image(item)
 
+        self.update_slider()
+
+        current_frame = self.navigator.index + 1
+
+        total_frames = self.navigator.get_base_length()
+
+        self.frame_label.setText(
+            f"Frame {current_frame} / {total_frames}"
+        )
+
     # =========================================================
     # NAVIGATION
     # =========================================================
     def show_next(self):
         self.navigator.next()
+
         self.update_image()
+
         self.setFocus()
 
     def show_prev(self):
         self.navigator.prev()
+
         self.update_image()
+
         self.setFocus()
 
     # =========================================================
@@ -336,6 +476,7 @@ class ImageViewer(QWidget):
             window.showFullScreen()
 
         self.update_image()
+
         self.setFocus()
 
     # =========================================================
